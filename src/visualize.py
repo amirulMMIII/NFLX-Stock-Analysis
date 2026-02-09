@@ -1,55 +1,29 @@
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import os
 
 def create_chart():
-    # 1. Tentukan laluan data processed
-    data_path = os.path.join('data', 'processed', 'nflx_processed.csv')
+    df = pd.read_csv(os.path.join('data', 'processed', 'nflx_live_processed.csv'))
     
-    if not os.path.exists(data_path):
-        print(f"❌ Ralat: Fail {data_path} tidak dijumpai! Sila jalankan stock_engine.py dahulu.")
-        return
+    # Cipta 2 baris graf (Satu untuk Candlestick, satu untuk RSI)
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                       vertical_spacing=0.1, subplot_titles=('NFLX Price & Bollinger Bands', 'RSI'),
+                       row_width=[0.3, 0.7])
 
-    # 2. Baca data
-    df = pd.read_csv(data_path)
+    # 1. Candlestick & Bollinger Bands (Row 1)
+    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Price'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df['Upper_Band'], line=dict(color='rgba(173, 216, 230, 0.5)'), name='Upper Band'), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df['Lower_Band'], line=dict(color='rgba(173, 216, 230, 0.5)'), fill='tonexty', name='Lower Band'), row=1, col=1)
+
+    # 2. RSI (Row 2)
+    fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], line=dict(color='yellow'), name='RSI'), row=2, col=1)
+    fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1) # Overbought
+    fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1) # Oversold
+
+    fig.update_layout(height=800, template='plotly_dark', title='NFLX ADVANCED REALTIME DASHBOARD', xaxis_rangeslider_visible=False)
     
-    # Pastikan kolum Date dalam format datetime
-    df['Date'] = pd.to_datetime(df.index) 
-
-    # 3. Bina Graf Candlestick
-    fig = go.Figure()
-
-    # Tambah Candlestick
-    fig.add_trace(go.Candlestick(
-        x=df['Date'],
-        open=df['Open'], high=df['High'],
-        low=df['Low'], close=df['Close'],
-        name='Market Data'
-    ))
-
-    # Tambah Moving Average 50 (Garis Biru)
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['MA50'], 
-                             line=dict(color='blue', width=1.5), 
-                             name='MA50 (Short Term)'))
-
-    # Tambah Moving Average 200 (Garis Merah)
-    fig.add_trace(go.Scatter(x=df['Date'], y=df['MA200'], 
-                             line=dict(color='red', width=1.5), 
-                             name='MA200 (Long Term)'))
-
-    # 4. Kemaskini Layout
-    fig.update_layout(
-        title='Netflix (NFLX) Stock Analysis - Interactive Chart',
-        yaxis_title='Stock Price (USD)',
-        xaxis_title='Date',
-        template='plotly_dark', # Tema gelap yang profesional
-        xaxis_rangeslider_visible=False
-    )
-
-    # 5. Simpan dan Papar
-    output_path = os.path.join('results', 'nflx_chart.html')
-    fig.write_html(output_path)
-    print(f"✅ Graf berjaya dijana! Sila buka: {output_path}")
+    fig.write_html('index.html') # Simpan terus untuk GitHub Pages
     fig.show()
 
 if __name__ == "__main__":

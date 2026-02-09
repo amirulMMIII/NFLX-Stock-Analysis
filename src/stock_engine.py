@@ -1,44 +1,42 @@
 import yfinance as yf
 import pandas as pd
 import os
-import numpy as np
 
 def run_stock_pipeline(ticker='NFLX'):
-    print(f"🚀 Memulakan Pipeline untuk: {ticker}")
+    print(f"📡 [ADVANCED MODE] Mengambil data Intraday untuk: {ticker}")
 
-    # 1. MUAT TURUN DATA (RAW)
-    print("📡 Mendapatkan data dari Yahoo Finance...")
-    data = yf.download(ticker, period="5y")
+    # 1. Ambil data 1 minit (Paling pantas di yfinance)
+    # Nota: yfinance benarkan data 1m hanya untuk 7 hari terakhir sahaja
+    data = yf.download(ticker, period="1d", interval="1m")
     
     if data.empty:
-        print("❌ Gagal: Tiada data ditemui.")
+        print("❌ Ralat: Gagal mengambil data realtime.")
         return
 
-    # Tentukan laluan simpan RAW
-    raw_path = os.path.join('data', 'raw', f'{ticker.lower()}_raw.csv')
+    # Simpan RAW
+    raw_path = os.path.join('data', 'raw', f'{ticker.lower()}_live.csv')
     data.to_csv(raw_path)
-    print(f"✅ Data MENTAH disimpan di: {raw_path}")
 
-    # 2. PROSES DATA (CLEANING & ENGINEERING)
-    print("🧹 Membersihkan dan memproses data...")
+    # 2. ADVANCED ENGINEERING (Setara MooMoo)
     df = data.copy()
     
-    # Buat pengiraan teknikal
-    df['Daily_Return'] = df['Close'].pct_change()
-    df['MA50'] = df['Close'].rolling(window=50).mean()
-    df['MA200'] = df['Close'].rolling(window=200).mean()
-    
-    # Buang baris kosong (NaN) hasil dari rolling/pct_change
-    df_cleaned = df.dropna()
+    # RSI (Indikator Overbought/Oversold)
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    df['RSI'] = 100 - (100 / (1 + rs))
 
-    # Tentukan laluan simpan PROCESSED
-    processed_path = os.path.join('data', 'processed', f'{ticker.lower()}_processed.csv')
-    df_cleaned.to_csv(processed_path)
-    print(f"✅ Data BERSIH disimpan di: {processed_path}")
+    # Bollinger Bands (Indikator Volatiliti)
+    df['MA20'] = df['Close'].rolling(window=20).mean()
+    df['STD20'] = df['Close'].rolling(window=20).std()
+    df['Upper_Band'] = df['MA20'] + (df['STD20'] * 2)
+    df['Lower_Band'] = df['MA20'] - (df['STD20'] * 2)
 
-    print(f"\n✨ Analisis selesai untuk {ticker}!")
-    print(f"--- Sila semak folder 'data/raw' dan 'data/processed' ---")
+    # Simpan PROCESSED
+    processed_path = os.path.join('data', 'processed', f'{ticker.lower()}_live_processed.csv')
+    df.dropna().to_csv(processed_path)
+    print(f"✅ Data Intraday & Indikator MooMoo-Style siap!")
 
 if __name__ == "__main__":
-    # Jalankan pipeline
     run_stock_pipeline('NFLX')
